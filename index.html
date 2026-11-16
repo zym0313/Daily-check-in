@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#f5f0e8" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="./css/style.css" />
+  <title>小打卡</title>
+</head>
+<body>
+  <header class="app-header">
+    <h1 id="headerTitle">打卡</h1>
+    <button id="headerBackupBtn" class="icon-btn" title="备份">⇩</button>
+  </header>
+
+  <main id="mainView">
+    <!-- Tab 1: 打卡（合并今日+打卡） -->
+    <section class="page" id="page-habit">
+      <div class="greeting-card">
+        <div class="date-line" id="todayDateLine">--</div>
+        <div class="greeting-row">
+          <div class="greeting-stats">
+            <div class="gs-item"><div class="gs-num" id="todayRate">0%</div><div class="gs-label">今日完成率</div></div>
+            <div class="gs-item"><div class="gs-num" id="streakNum">0</div><div class="gs-label">连续打卡</div></div>
+            <div class="gs-item"><div class="gs-num" id="doneNum">0/0</div><div class="gs-label">已完成项</div></div>
+          </div>
+        </div>
+        <div class="period-banner hidden" id="periodBanner">
+          <span>🌸 生理期进行中</span>
+          <button class="link-btn" id="periodEndBtn">结束</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="date" id="habitDatePicker" />
+        <button class="btn-primary" id="addItemBtn">+ 新项目</button>
+      </div>
+      <div id="habitList" class="card-list"></div>
+      <button class="manage-cats" id="manageCatsBtn">☰ 管理分类</button>
+
+      <!-- 生理期 -->
+      <div class="card period-card">
+        <div class="row-between">
+          <div>
+            <div class="card-title">🌸 生理期记录</div>
+            <div class="card-sub" id="periodStatusLine">未记录</div>
+          </div>
+          <button class="btn-small" id="togglePeriodBtn">记录开始</button>
+        </div>
+        <div id="periodStartRow" class="hidden" style="margin-top:10px; gap:8px; align-items:center;">
+          <span style="font-size:13px;color:#999;">开始日期</span>
+          <input type="date" id="periodStartDate" style="flex:1; padding:10px; border:1px solid #e5e5e5; border-radius:8px; font-size:15px; min-height:44px;" />
+          <button class="btn-small" id="confirmStartBtn" style="min-height:44px; padding:10px 14px;">确认开始</button>
+        </div>
+        <div id="periodEndRow" class="hidden" style="margin-top:10px; gap:8px; align-items:center;">
+          <span style="font-size:13px;color:#999;">结束日期</span>
+          <input type="date" id="periodEndDate" style="flex:1; padding:10px; border:1px solid #e5e5e5; border-radius:8px; font-size:15px; min-height:44px;" />
+          <button class="btn-small" id="confirmEndBtn" style="background:#d9534f; min-height:44px; padding:10px 14px;">确认结束</button>
+        </div>
+        <div id="periodHistoryList" style="margin-top:10px;display:none;"></div>
+      </div>
+
+      <h3 class="section-title">最近7天概览</h3>
+      <canvas id="weekOverview" class="overview-canvas"></canvas>
+    </section>
+
+    <!-- Tab 2: 用药（独立） -->
+    <section class="page hidden" id="page-med">
+      <div class="seg" id="medViewSeg" style="margin-bottom:14px;">
+        <button data-view="today" class="active">今日</button>
+        <button data-view="history">历史</button>
+      </div>
+      <div class="med-stat-row" id="medStatRow">
+        <div class="med-stat-card"><div class="ms-num" id="medDueCount">0</div><div class="ms-label">今日需服</div></div>
+        <div class="med-stat-card"><div class="ms-num" id="medTakenCount">0</div><div class="ms-label">已服用</div></div>
+      </div>
+      <div class="card">
+        <div class="row-between">
+          <div class="card-title"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-3px;margin-right:4px;"><path d="M10.5 20.5a5 5 0 0 1-7-7l7-7a5 5 0 0 1 7 7l-7 7z"/><path d="M8.5 8.5l7 7"/></svg>用药时间表</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-small" id="medCatchupBtn">补记</button>
+            <button class="btn-small" id="manageMedsBtn">管理药品</button>
+          </div>
+        </div>
+        <div id="medList" class="card-list" style="margin-top:10px;"></div>
+        <div class="med-note">⚠️ PWA 受浏览器限制无法锁屏推送提醒；APK 版本可实现完整提醒。</div>
+      </div>
+    </section>
+
+    <!-- Tab 3: 日志 -->
+    <section class="page hidden" id="page-log">
+      <div class="toolbar">
+        <input type="search" id="logSearch" placeholder="搜索关键词..." />
+        <button class="btn-primary" id="addLogBtn">+ 写日志</button>
+      </div>
+      <div id="logTimeline" class="card-list"></div>
+    </section>
+
+    <!-- Tab 4: 任务看板 -->
+    <section class="page hidden" id="page-tasks">
+      <div class="toolbar">
+        <div class="seg" id="taskViewSeg" style="flex:1;">
+          <button data-view="week" class="active">周视图</button>
+          <button data-view="month">月视图</button>
+        </div>
+        <button class="btn-primary" id="addTaskBtn">+ 任务</button>
+      </div>
+      <div id="taskWeekView"></div>
+      <div id="taskMonthView" class="hidden"></div>
+    </section>
+
+    <!-- Tab 5: 统计 -->
+    <section class="page hidden" id="page-stats">
+      <div class="seg" id="statsTypeSeg" style="margin-bottom:10px;">
+        <button data-type="habit" class="active">打卡</button>
+        <button data-type="med">用药</button>
+        <button data-type="period">生理期</button>
+      </div>
+      <select id="statsItemSelect" class="select-full"></select>
+      <div class="seg" id="statsRangeSeg">
+        <button data-range="week" class="active">周</button>
+        <button data-range="month">月</button>
+        <button data-range="year">年</button>
+      </div>
+      <div class="month-nav">
+        <button id="statsPrev">‹</button>
+        <span id="statsCursorLabel">本月</span>
+        <button id="statsNext">›</button>
+      </div>
+      <div class="stat-summary" id="statSummary"></div>
+      <div class="seg" id="chartTypeSeg" style="margin-bottom:10px;">
+        <button data-chart="heatmap" class="active">热力图</button>
+        <button data-chart="vbar">柱状图</button>
+      </div>
+      <div id="heatmapView"></div>
+      <div id="hbarView" class="hidden"></div>
+      <canvas id="statsChart" class="stats-canvas"></canvas>
+      <h3 class="section-title">最近记录</h3>
+      <div id="recentRecords" class="record-list"></div>
+    </section>
+
+    <!-- Tab 6: 我的 -->
+    <section class="page hidden" id="page-me">
+      <div class="me-greeting">
+        <div class="me-avatar">😊</div>
+        <div>
+          <div class="me-title">你好，坚持打卡的你</div>
+          <div class="me-sub">已累计打卡 <span id="totalStreakNum">0</span> 天，继续加油 ✨</div>
+        </div>
+      </div>
+
+      <div class="me-stat-grid">
+        <div class="me-stat-item"><div class="msi-num" id="meItemCount">0</div><div class="msi-label">打卡项目</div></div>
+        <div class="me-stat-item"><div class="msi-num" id="meRecordCount">0</div><div class="msi-label">累计打卡</div></div>
+        <div class="me-stat-item"><div class="msi-num" id="meMedCount">0</div><div class="msi-label">药品数量</div></div>
+        <div class="me-stat-item"><div class="msi-num" id="meBestStreak">0</div><div class="msi-label">最长连续</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🎨 主题色</div>
+        <div class="theme-picker" id="themePicker">
+          <button class="theme-dot active" data-theme="mint" style="background:#a8d5ba;" title="薄荷绿"></button>
+          <button class="theme-dot" data-theme="peach" style="background:#f5c6a0;" title="暖橙"></button>
+          <button class="theme-dot" data-theme="lavender" style="background:#c5b8e0;" title="薰衣草"></button>
+          <button class="theme-dot" data-theme="sky" style="background:#a8c8e0;" title="天蓝"></button>
+          <button class="theme-dot" data-theme="rose" style="background:#e8b5c5;" title="玫瑰粉"></button>
+          <button class="theme-dot" data-theme="ocean" style="background:#8ec8c0;" title="海洋青"></button>
+        </div>
+        <label class="switch-row" style="margin-top:14px;">
+          <span>🌙 深色模式</span>
+          <input type="checkbox" id="darkToggle" />
+        </label>
+      </div>
+
+      <div class="card">
+        <div class="card-title">数据备份</div>
+        <div class="btn-row">
+          <button class="btn-primary" id="exportBtn">导出 CSV 备份</button>
+          <button class="btn-secondary" id="importBtn">导入 CSV</button>
+          <input type="file" id="importFile" accept=".csv" class="hidden" />
+        </div>
+        <div class="med-note" style="margin-top:10px;">
+          ⚠️ CSV 仅备份文字打卡/用药/任务数据；日志中的图片存在浏览器本地，无法通过 CSV 导出。请定期用手机截图或手动保存重要图片，清理浏览器数据会丢失图片。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title danger">危险操作</div>
+        <div class="btn-row">
+          <button class="btn-warn" id="resetRecordsBtn">清空打卡记录</button>
+          <button class="btn-warn" id="resetItemsBtn">清空项目</button>
+          <button class="btn-danger" id="resetAllBtn">清空全部数据</button>
+        </div>
+      </div>
+
+      <div class="foot-note">
+        <div>版本 v3.3.0 · 完全离线运行</div>
+        <div>所有数据仅保存在本机浏览器</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 底部 Tab -->
+  <nav class="tabbar">
+    <button class="tab active" data-tab="habit"><span class="tab-icon">✓</span><span>打卡</span></button>
+    <button class="tab" data-tab="med"><span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.5 20.5a5 5 0 0 1-7-7l7-7a5 5 0 0 1 7 7l-7 7z"/><path d="M8.5 8.5l7 7"/></svg></span><span>用药</span></button>
+    <button class="tab" data-tab="log"><span class="tab-icon">✐</span><span>日志</span></button>
+    <button class="tab" data-tab="tasks"><span class="tab-icon">☰</span><span>任务</span></button>
+    <button class="tab" data-tab="stats"><span class="tab-icon">∿</span><span>统计</span></button>
+    <button class="tab" data-tab="me"><span class="tab-icon">○</span><span>我的</span></button>
+  </nav>
+
+  <!-- 弹窗：管理分类 -->
+  <div class="modal-mask hidden" id="manageCatsModal">
+    <div class="modal">
+      <h3 style="cursor:pointer;" id="manageCatsBack">← 管理分类</h3>
+      <div id="manageCatsList" style="max-height:60vh; overflow-y:auto; margin-bottom:16px;"></div>
+      <button class="btn-primary" id="addCatBtn" style="width:100%; padding:14px; font-size:15px;">+ 新增分类</button>
+    </div>
+  </div>
+
+  <!-- 弹窗：新增/编辑打卡项目 -->
+  <div class="modal-mask hidden" id="itemModal">
+    <div class="modal">
+      <h3 id="itemModalTitle">新项目</h3>
+      <label class="form-row"><span>名称</span><input type="text" id="itemName" maxlength="20" placeholder="例如：早起喝水" /></label>
+      <label class="form-row"><span>图标</span>
+        <div class="icon-picker" id="iconPicker"></div>
+      </label>
+      <label class="form-row"><span>颜色</span>
+        <div class="color-picker" id="colorPicker">
+          <button type="button" data-color="#f0a868" class="color-dot active"></button>
+          <button type="button" data-color="#5cb85c" class="color-dot"></button>
+          <button type="button" data-color="#f0ad4e" class="color-dot"></button>
+          <button type="button" data-color="#9b59b6" class="color-dot"></button>
+          <button type="button" data-color="#5ba3d9" class="color-dot"></button>
+          <button type="button" data-color="#e8789a" class="color-dot"></button>
+          <button type="button" data-color="#3bb5a0" class="color-dot"></button>
+          <button type="button" data-color="#e8944a" class="color-dot"></button>
+        </div>
+      </label>
+      <div class="goal-row">
+        <label class="form-row"><span>每日目标</span><input type="number" id="itemGoal" min="1" value="1" /></label>
+        <label class="form-row"><span>单位</span><input type="text" id="itemUnit" maxlength="5" placeholder="次" /></label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="itemCancelBtn">取消</button>
+        <button class="btn-primary" id="itemSaveBtn">保存</button>
+      </div>
+      <button class="modal-close" id="itemDeleteBtn">删除项目</button>
+    </div>
+  </div>
+
+  <!-- 弹窗：打卡状态 -->
+  <div class="modal-mask hidden" id="statusModal">
+    <div class="modal">
+      <h3 id="statusModalTitle">选择状态</h3>
+      <div class="status-grid">
+        <button class="status-btn done" data-status="done">✓ 完成</button>
+        <button class="status-btn postpone" data-status="postpone">⏸ 暂缓</button>
+        <button class="status-btn skip" data-status="skip">✕ 放弃</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="statusCancelBtn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 弹窗：管理药品 -->
+  <div class="modal-mask hidden" id="manageMedsModal">
+    <div class="modal">
+      <h3 style="cursor:pointer;" id="manageMedsBack">← 管理药品</h3>
+      <div id="manageMedsList" style="max-height:60vh; overflow-y:auto; margin-bottom:16px;"></div>
+      <button class="btn-primary" id="addMedBtn" style="width:100%; padding:14px; font-size:15px;">+ 添加药品</button>
+    </div>
+  </div>
+
+  <!-- 弹窗：新增/编辑药品 -->
+  <div class="modal-mask hidden" id="medModal">
+    <div class="modal">
+      <h3 id="medModalTitle">添加药品</h3>
+      <label class="form-row"><span>药名</span><input type="text" id="medName" maxlength="20" placeholder="例如：维生素D" /></label>
+      <label class="form-row"><span>剂量</span><input type="text" id="medDosage" maxlength="20" placeholder="例如：1粒/天" /></label>
+      <label class="form-row"><span>类型</span>
+        <select id="medType" style="flex:1; padding:8px; border:1px solid #e5e5e5; border-radius:8px;">
+          <option value="interval">间隔N天服药</option>
+          <option value="cycle">疗程（连续X天，停Y天）</option>
+        </select>
+      </label>
+      <div id="intervalConfig">
+        <label class="form-row"><span>间隔天数</span><input type="number" id="medIntervalDays" min="1" max="30" value="1" /></label>
+      </div>
+      <div id="cycleConfig" class="hidden">
+        <label class="form-row"><span>连续天数</span><input type="number" id="medCycleOn" min="1" max="30" value="5" /></label>
+        <label class="form-row"><span>暂停天数</span><input type="number" id="medCycleOff" min="1" max="30" value="2" /></label>
+      </div>
+      <label class="form-row"><span>开始日期</span><input type="date" id="medStartDate" /></label>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="medCancelBtn">取消</button>
+        <button class="btn-primary" id="medSaveBtn">保存</button>
+      </div>
+      <button class="modal-close" id="medDeleteBtn">删除此药品</button>
+    </div>
+  </div>
+
+  <!-- 弹窗：用药状态 -->
+  <div class="modal-mask hidden" id="medStatusModal">
+    <div class="modal">
+      <h3 id="medStatusTitle">用药记录</h3>
+      <div class="status-grid">
+        <button class="status-btn done" data-status="taken">✓ 已服</button>
+        <button class="status-btn postpone" data-status="paused">⏸ 暂停</button>
+        <button class="status-btn skip" data-status="missed">✕ 漏服</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="medStatusCancelBtn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 弹窗：补记用药 -->
+  <div class="modal-mask hidden" id="medCatchupModal">
+    <div class="modal">
+      <h3 id="medCatchupTitle">补记用药</h3>
+      <label class="form-row"><span>日期</span><input type="date" id="medCatchupDate" /></label>
+      <div id="medCatchupList" style="margin:10px 0;"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="medCatchupCancelBtn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 弹窗：新增/编辑任务 -->
+  <div class="modal-mask hidden" id="taskModal">
+    <div class="modal">
+      <h3 id="taskModalTitle">新任务</h3>
+      <label class="form-row"><span>任务名</span><input type="text" id="taskTitle" maxlength="30" placeholder="例如：周三交报告" /></label>
+      <label class="form-row"><span>类型</span>
+        <select id="taskType" style="flex:1; padding:8px; border:1px solid #e5e5e5; border-radius:8px;">
+          <option value="long">长期重复任务</option>
+          <option value="once">一次性任务</option>
+        </select>
+      </label>
+      <div id="taskDateRow">
+        <label class="form-row"><span>日期</span><input type="date" id="taskDate" /></label>
+      </div>
+      <div id="taskEndDateRow" class="hidden">
+        <label class="form-row"><span>结束日期</span><input type="date" id="taskEndDate" /></label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="taskCancelBtn">取消</button>
+        <button class="btn-primary" id="taskSaveBtn">保存</button>
+      </div>
+      <button class="modal-close" id="taskDeleteBtn">删除此任务</button>
+    </div>
+  </div>
+
+  <!-- 弹窗：日志编辑 -->
+  <div class="modal-mask hidden" id="logModal">
+    <div class="modal">
+      <h3 id="logModalTitle">写日志</h3>
+      <label class="form-row"><span>日期</span><input type="date" id="logDate" /></label>
+      <textarea id="logText" rows="5" placeholder="今天发生了什么..." style="width:100%; padding:10px; border:1px solid #e5e5e5; border-radius:12px; font-size:14px; resize:vertical; margin:10px 0;"></textarea>
+      <div id="logImgPreview" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;"></div>
+      <div class="btn-row">
+        <button class="btn-secondary" id="addImgBtn">+ 添加图片</button>
+        <input type="file" id="logImgInput" accept="image/*" multiple class="hidden" />
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="logCancelBtn">取消</button>
+        <button class="btn-primary" id="logSaveBtn">保存</button>
+      </div>
+      <button class="modal-close" id="logDeleteBtn">删除此日志</button>
+    </div>
+  </div>
+
+  <!-- 弹窗：当日详情 -->
+  <div class="modal-mask hidden" id="dayDetailModal">
+    <div class="modal">
+      <h3 id="dayDetailTitle">当日详情</h3>
+      <div id="dayDetailContent" style="max-height:60vh; overflow-y:auto;"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" id="dayDetailCloseBtn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 弹窗：图片预览 -->
+  <div class="modal-mask hidden" id="imgPreviewModal" style="background:rgba(0,0,0,.9);">
+    <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; position:relative;">
+      <img id="imgPreviewFull" style="max-width:100%; max-height:100%; object-fit:contain;" />
+      <button id="imgPreviewClose" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,.2); color:#fff; border:none; border-radius:50%; width:36px; height:36px; font-size:18px; cursor:pointer;">×</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="./js/db.js"></script>
+  <script src="./js/charts.js"></script>
+  <script src="./js/backup.js"></script>
+  <script src="./js/app.js"></script>
+</body>
+</html>

@@ -1899,21 +1899,32 @@ const App = {
         row.className = 'moment-row';
         let thumbHtml = '';
         if (log.images && log.images.length) {
-          const imgs = log.images.slice(0, 4);
+          const imgs = log.images.slice(0, 9);
           thumbHtml = `<div class="moment-thumbs">` +
             imgs.map((img, i) => `<img src="${img}" class="moment-thumb" data-idx="${i}" />`).join('') +
             `</div>`;
         }
+        const text = this._escHtml(log.text || '');
+        const isLong = (log.text || '').length > 50;
         row.innerHTML = `
           ${thumbHtml}
           <div class="moment-body">
-            <div class="moment-text">${this._escHtml(log.text || '')}</div>
+            <div class="moment-text ${isLong ? 'clamped' : ''}">${text}</div>
+            ${isLong ? '<div class="moment-toggle">展开 ▾</div>' : ''}
             <div class="moment-meta">
               <span class="moment-edit">编辑</span>
               <span class="moment-day">当天记录</span>
             </div>
           </div>
         `;
+        const toggle = row.querySelector('.moment-toggle');
+        if (toggle) {
+          toggle.addEventListener('click', () => {
+            const t = row.querySelector('.moment-text');
+            t.classList.toggle('clamped');
+            toggle.textContent = t.classList.contains('clamped') ? '展开 ▾' : '收起 ▴';
+          });
+        }
         row.querySelector('.moment-edit').addEventListener('click', () => this.openLogModal(log.id));
         row.querySelector('.moment-day').addEventListener('click', () => this.showDayDetail(log.date));
         row.querySelectorAll('.moment-thumb').forEach((img, i) => {
